@@ -50,6 +50,15 @@ product_category = product_category.drop_duplicates(subset=['product_category_na
 products = products.copy()
 products = products.drop_duplicates(subset=['product_id'])
 
+# join product information and category
+products = pd.merge(products, product_category, on='product_category_name', how='left')
+products.head()
+products.drop('product_category_name', axis=1, inplace=True)
+products.drop(['product_description_lenght', 'product_name_lenght', 'product_category_name'], axis=1, inplace=True)
+
+products = products.rename(columns={"product_category_name_english": "product_category_name"})
+
+
 # reviews
 reviews = order_reviews.copy()
 print('Duplicates in order_id: ', reviews['order_id'].duplicated().sum())
@@ -66,6 +75,9 @@ reviews = reviews.drop(['review_id','review_comment_title', 'review_comment_mess
 # sellers
 sellers = sellers.copy()
 sellers = sellers.drop_duplicates(subset=['seller_id'])
+
+# 
+sellers.rename(columns={"seller_state": "state_code", "seller_city": "city"})
 
 # geolocation
 geolocation = pd.read_csv('data/olist_geolocation_dataset.csv', index_col=False, delimiter=',')
@@ -100,4 +112,7 @@ orders['actual_days_of_delivery'] = (orders['order_delivered_customer_date'] - o
 orders.head()
 
 # state_code
-state_codes = state_codes.copy()
+#state_codes = pd.read_csv('data/state_codes.csv', index_col=False, delimiter=',')
+state_codes = pd.read_excel('data/state_codes.xlsx', usecols=[0,1], names=['state_name','state_code'])
+state_codes = state_codes[state_codes['state_code'].notnull()]
+state_codes.head()
