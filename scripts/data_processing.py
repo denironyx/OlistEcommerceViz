@@ -31,7 +31,7 @@ for data_file in data_files:
 customers = customers.copy()
 customers = customers.drop_duplicates(subset=['customer_id'])
 customers.drop(['customer_unique_id'], axis=1, inplace=True)
-customers.rename(columns={"customer_state": "state_code", "customer_city": "city"})
+customers.rename(columns={"customer_state": "state_code", "customer_city": "city", "customer_zip_code_prefix": "zip_code"}, inplace=True)
 
 # order items
 order_items = order_items.copy()
@@ -77,18 +77,18 @@ sellers = sellers.copy()
 sellers = sellers.drop_duplicates(subset=['seller_id'])
 
 # 
-sellers.rename(columns={"seller_state": "state_code", "seller_city": "city"})
+sellers.rename(columns={"seller_state": "state_code", "seller_city": "city", "seller_zip_code_prefix":"zip_code"}, inplace=True)
 
 # geolocation
 geolocation = pd.read_csv('data/olist_geolocation_dataset.csv', index_col=False, delimiter=',')
 geolocation = geolocation.drop(['geolocation_city', 'geolocation_state'], axis=1)
 geolocation = geolocation.drop_duplicates(subset=['geolocation_zip_code_prefix'], ignore_index=True)
 
-geo_customer = geolocation.rename(columns={"geolocation_zip_code_prefix":"customer_zip_code_prefix",
+geo_customer = geolocation.rename(columns={"geolocation_zip_code_prefix":"zip_code",
                                             "geolocation_lat":"customer_lat",
                                             "geolocation_lng":"customer_lng"})
 
-geo_seller = geolocation.rename(columns={"geolocation_zip_code_prefix":"seller_zip_code_prefix",
+geo_seller = geolocation.rename(columns={"geolocation_zip_code_prefix":"zip_code",
                                          "geolocation_lat": "seller_lat",
                                          "geolocation_lng": "seller_lng"})
 
@@ -112,7 +112,15 @@ orders['actual_days_of_delivery'] = (orders['order_delivered_customer_date'] - o
 orders.head()
 
 # state_code
-#state_codes = pd.read_csv('data/state_codes.csv', index_col=False, delimiter=',')
+# state_codes = pd.read_csv('data/state_codes.csv', index_col=False, delimiter=',')
 state_codes = pd.read_excel('data/state_codes.xlsx', usecols=[0,1], names=['state_name','state_code'])
 state_codes = state_codes[state_codes['state_code'].notnull()]
 state_codes.head()
+
+# Join state codes and seller or customer data
+sellers = pd.merge(sellers,state_codes, on='state_code', how='left' )
+sellers = pd.merge(sellers, geo_seller, on='zip_code', how='left')
+
+# Join state codes and seller or customer data
+customers = pd.merge(customers, state_codes, on='state_code', how='left')
+customers = pd.merge(customers, geo_customer, on='zip_code', how='left')
