@@ -2,6 +2,7 @@
 import pandas as pd
 import os
 import zipfile
+import geopandas as gpd
 
 zip_path = 'data/raw/ecommerce.zip'
 extract_folder = 'data/extracted'
@@ -32,20 +33,24 @@ for data_file in data_files:
         #create a seperate variable dynamically using globals() function
         globals()[modified_name] = modified_dataframe
         print(f"Processed file {data_file} and saved the modified DataFrame to {modified_name}")
+    else:
+        print(f'This file {data_file} is not .csv')
 
 ## Cleaning of the data
 
 # customers
 customers = customers.copy()
 customers = customers.drop_duplicates(subset=['customer_id'])
-customers.drop(['customer_unique_id'], axis=1, inplace=True)
-customers.rename(columns={"customer_state": "state_code", "customer_city": "city", "customer_zip_code_prefix": "zip_code"}, inplace=True)
+customers.drop(['customer_id'], axis=1, inplace=True)
+customers.rename(columns={"customer_unique_id":"customer_id", "customer_state": "state_code", "customer_city": "city", "customer_zip_code_prefix": "zip_code"}, inplace=True)
+customers
 
 # order items
 order_items = order_items.copy()
-order_items = order_items.drop_duplicates(subset=['order_id'])
-order_items = order_items.drop(['order_item_id'], axis=1)
+#order_items = order_items.drop_duplicates(subset=['order_id'])
+order_items = order_items.drop(['order_item_id', 'shipping_limit_date'], axis=1)
 order_items.head()
+order_items['sales_unit_price'] = order_items['price'] + order_items['freight_value'] 
 
 # payments
 payments = order_payments.copy()
@@ -102,10 +107,18 @@ geo_seller = geolocation.rename(columns={"geolocation_zip_code_prefix":"zip_code
                                          "geolocation_lat": "seller_lat",
                                          "geolocation_lng": "seller_lng"})
 
-
 # orders
 orders = orders.copy()
-orders = orders.drop_duplicates(subset=['order_id'])
+#orders = orders.drop_duplicates(subset=['order_id'])
+
+# functions
+def delivery_ontime(est_date, del_date):
+    if est_date < del_date:
+        return "Late"
+    else:
+        return "On time"
+    
+    
 
 #changing dtype to date
 orders.loc[:, 'order_purchase_timestamp'] = pd.to_datetime(orders['order_purchase_timestamp'],
@@ -114,11 +127,17 @@ orders.loc[:, 'order_delivered_customer_date'] = pd.to_datetime(orders['order_de
                                                             format='%Y/%m/%d').dt.date
 orders.loc[:, 'order_estimated_delivery_date'] = pd.to_datetime(orders['order_estimated_delivery_date'],
                                                             format='%Y/%m/%d').dt.date
+orders['order_purchase_year'] = pd.to_datetime(orders['order_purchase_timestamp']).dt.year
+orders['order_purchase_month'] = pd.to_datetime(orders['order_purchase_timestamp']).dt.month
+
 
 # track the estimated and actual days of delivery
 orders['estimated_days_of_delivery'] = (orders['order_estimated_delivery_date'] - orders['order_purchase_timestamp']).astype('timedelta64[D]')
 orders['actual_days_of_delivery'] = (orders['order_delivered_customer_date'] - orders['order_purchase_timestamp']).astype('timedelta64[D]')
-
+orders['delivery_performance'] = orders.apply(
+    lambda x: delivery_ontime(x.estimated_days_of_delivery, x.actual_days_of_delivery), axis=1
+)
+orders = orders.drop([ 'order_approved_at', 'order_delivered_carrier_date', 'order_delivered_customer_date', 'order_estimated_delivery_date'], axis = 1)
 orders.head()
 
 # state_code
@@ -126,6 +145,7 @@ orders.head()
 state_codes = pd.read_excel(os.path.join(extract_folder, 'state_codes.xlsx'), usecols=[0,1], names=['state_name','state_code'])
 state_codes = state_codes[state_codes['state_code'].notnull()]
 state_codes.head()
+
 
 # Join state codes and seller or customer data
 sellers = pd.merge(sellers,state_codes, on='state_code', how='left' )
