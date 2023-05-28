@@ -41,8 +41,9 @@ for data_file in data_files:
 # customers
 customers = customers.copy()
 customers = customers.drop_duplicates(subset=['customer_id'])
-customers.drop(['customer_id'], axis=1, inplace=True)
-customers.rename(columns={"customer_unique_id":"customer_id", "customer_state": "state_code", "customer_city": "city", "customer_zip_code_prefix": "zip_code"}, inplace=True)
+customers.drop(['customer_unique_id'], axis=1, inplace=True)
+customers.rename(columns={"customer_state": "state_code", "customer_city": "city", "customer_zip_code_prefix": "zip_code"}, inplace=True)
+customers['city'] = customers['city'].str.title()
 customers
 
 # order items
@@ -55,6 +56,7 @@ order_items['sales_unit_price'] = order_items['price'] + order_items['freight_va
 # payments
 payments = order_payments.copy()
 payments[payments['order_id'].duplicated()]
+payments['payment_type'] = payments['payment_type'].str.replace('_',' ').str.title()
 payments[payments.order_id == '8e5148bee82a7e42c5f9ba76161dc51a']
 
 
@@ -72,7 +74,14 @@ products.head()
 products.drop(['product_description_lenght', 'product_name_lenght', 'product_category_name', 'product_photos_qty', 'product_weight_g', 'product_length_cm', 'product_height_cm', 'product_width_cm'], axis=1, inplace=True)
 
 products = products.rename(columns={"product_category_name_english": "product_category_name"})
+products['product_category_name'] = products['product_category_name'].str.replace('_',' ').str.title()
 
+
+###
+df_cust = pd.merge(orders, customers, on = 'customer_id', how='left')
+df_cust.head()
+
+###
 
 # reviews
 reviews = order_reviews.copy()
@@ -90,6 +99,7 @@ reviews = reviews.drop(['review_id','review_comment_title', 'review_comment_mess
 # sellers
 sellers = sellers.copy()
 sellers = sellers.drop_duplicates(subset=['seller_id'])
+sellers['seller_city'] = sellers['seller_city'].str.title()
 
 # 
 sellers.rename(columns={"seller_state": "state_code", "seller_city": "city", "seller_zip_code_prefix":"zip_code"}, inplace=True)
